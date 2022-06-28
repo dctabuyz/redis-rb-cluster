@@ -52,6 +52,14 @@ class RedisCluster
         end
     end
 
+    def authorize(conn)
+        if @opt[:username] and @opt[:password]
+            conn.send('AUTH'.to_sym, @opt[:username], @opt[:password])
+        elsif @opt[:password]
+            conn.send('AUTH'.to_sym, @opt[:password])
+        end
+    end
+
     # Contact the startup nodes and try to fetch the hash slots -> instances
     # map in order to initialize the @slots hash.
     def initialize_slots_cache
@@ -61,6 +69,7 @@ class RedisCluster
                 @nodes = []
 
                 r = get_redis_link(n[:host],n[:port])
+                authorize(r)
                 r.cluster("slots").each {|r|
                     (r[0]..r[1]).each{|slot|
                         ip,port = r[2]
@@ -92,6 +101,7 @@ class RedisCluster
         @startup_nodes.each{|n| set_node_name! n}
         @nodes.each{|n| @startup_nodes << n}
         @startup_nodes.uniq!
+        @startup_nodes.each { |n| authorize(n) }
     end
 
     # Flush the cache, mostly useful for debugging when we want to force
@@ -171,6 +181,8 @@ class RedisCluster
                 if !conn
                     # Connect the node if it is not connected
                     conn = get_redis_link(n[:host],n[:port])
+                    authorize(conn)
+
                     if conn.ping == "PONG"
                         close_existing_connection
                         @connections[n[:name]] = conn
@@ -205,6 +217,7 @@ class RedisCluster
                 close_existing_connection
                 @connections[node[:name]] =
                     get_redis_link(node[:host],node[:port])
+                authorize(@connections[node[:name]])
             rescue
                 # This will probably never happen with recent redis-rb
                 # versions because the connection is enstablished in a lazy
