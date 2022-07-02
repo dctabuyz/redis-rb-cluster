@@ -53,11 +53,10 @@ class RedisCluster
     end
 
     def authorize(conn)
-        if @opt[:username] and @opt[:password]
-            conn.send('AUTH'.to_sym, @opt[:username], @opt[:password])
-        elsif @opt[:password]
-            conn.send('AUTH'.to_sym, @opt[:password])
-        end
+        auth = []
+        auth << @opt[:username] if @opt[:username] and not @opt[:username].to_s.empty?
+        auth << @opt[:password] if @opt[:password] and not @opt[:password].to_s.empty?
+        conn.send('AUTH'.to_sym, *auth) unless auth.empty?
     end
 
     # Contact the startup nodes and try to fetch the hash slots -> instances
